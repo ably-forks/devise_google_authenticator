@@ -24,10 +24,10 @@ Gem::Specification.new do |s|
     # 'railties' => '~> 3.0',
     # removed the following to try and get past this bundle update not finding compatible versions for gem issue
     # 'actionmailer' => '>= 3.0',
-    #'actionmailer' => '~> 3.2',# '>= 3.2.12',
-    'devise'  => '~> 4.1.0',
-    'rotp'    => '~> 1.6',
-    'rqrcode' => '~> 0.10.1'
+    # 'actionmailer' => '~> 3.2',# '>= 3.2.12',
+    'devise'  => '4.6.2',
+    'rotp'    => '>= 1.6',
+    'rqrcode' => '>= 0.10.1'
   }.each do |lib, version|
     s.add_runtime_dependency(lib, *version)
   end

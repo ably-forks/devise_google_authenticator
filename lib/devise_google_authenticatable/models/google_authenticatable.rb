@@ -38,7 +38,7 @@ module Devise #:nodoc:
             valid_vals << ROTP::TOTP.new(self.get_qr).at(Time.now.in(30*cc))
           end
 
-          return valid_vals.include?(token.to_i)
+          return valid_vals.include?(token.to_s)
         end
 
         def gauth_enabled?
