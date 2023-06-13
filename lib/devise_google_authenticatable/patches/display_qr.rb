@@ -7,7 +7,7 @@ module DeviseGoogleAuthenticator::Patches #:nodoc:
       # arrr be the patch
       alias_method :create_original, :create
 
-      define_method :create do
+      def create
         build_resource(sign_up_params)
 
         unless resource.save
