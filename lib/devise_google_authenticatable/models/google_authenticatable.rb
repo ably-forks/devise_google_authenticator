@@ -7,7 +7,7 @@ module Devise #:nodoc:
         base.extend ClassMethods
 
         base.class_eval do
-          after_initialize :assign_auth_secret, if: ->() { self.persisted? && self.gauth_secret.blank? }
+          before_validation :assign_auth_secret, on: :create
           include InstanceMethods
         end
       end
@@ -19,11 +19,14 @@ module Devise #:nodoc:
 
         def set_gauth_enabled(param)
           #self.update_without_password(params[gauth_enabled])
-          self.update_attributes(gauth_enabled: param)
+          self.update(:gauth_enabled => param)
         end
 
         def assign_tmp
-          self.update_attributes(gauth_tmp: ROTP::Base32.random_base32(32), gauth_tmp_datetime: DateTime.now)
+          self.update(
+            gauth_tmp: ROTP::Base32.random_base32(32),
+            gauth_tmp_datetime: DateTime.now
+          )
           self.gauth_tmp
         end
 
@@ -38,15 +41,19 @@ module Devise #:nodoc:
             valid_vals << ROTP::TOTP.new(self.get_qr).at(Time.now.in(30*cc))
           end
 
-          return valid_vals.include?(token.to_s)
+          valid_vals.include?(token.to_s)
         end
 
         def gauth_enabled?
-          if self.gauth_enabled.respond_to?(:to_i)
-            # Active_record seems to handle determining the status better this way
-            return self.gauth_enabled.to_i != 0
+          # Active_record seems to handle determining the status better this way
+          if self.gauth_enabled.respond_to?("to_i")
+            if self.gauth_enabled.to_i != 0
+              return true
+            else
+              return false
+            end
+          # Mongoid does NOT have a .to_i for the Boolean return value, hence, we can just return it
           else
-            # Mongoid does NOT have a .to_i for the Boolean return value, hence we can just return it
             return self.gauth_enabled
           end
         end
@@ -55,29 +62,25 @@ module Devise #:nodoc:
           return true if self.class.ga_remembertime.nil? || cookie.blank?
 
           array = cookie.to_s.split ','
-
           return true if array.count != 2
 
           last_logged_in_email = array[0]
           last_logged_in_time = array[1].to_i
-
           return last_logged_in_email != self.email || (Time.now.to_i - last_logged_in_time) > self.class.ga_remembertime.to_i
         end
 
         private
 
         def assign_auth_secret
-          secret_key = ROTP::Base32.random_base32(64)
-          self.update_attribute(:gauth_secret, secret_key) if self.gauth_secret.blank?
-          self.gauth_secret = secret_key
+          self.gauth_secret = ROTP::Base32.random_base32(64)
         end
+
       end
 
-      module ClassMethods #:nodoc:
+      module ClassMethods # :nodoc:
         def find_by_gauth_tmp(gauth_tmp)
           where(gauth_tmp: gauth_tmp).first
         end
-
         ::Devise::Models.config(self, :ga_timeout, :ga_timedrift, :ga_remembertime, :ga_appname, :ga_bypass_signup)
       end
     end

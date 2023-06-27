@@ -2,7 +2,8 @@ require 'test_helper'
 require 'integration_tests_helper'
 
 class InvitationTest < ActionDispatch::IntegrationTest
-  self.use_transactional_fixtures = false
+  include IntegrationTestHelpers
+  self.use_transactional_tests = true
 
   def teardown
     Capybara.reset_sessions!
@@ -11,9 +12,9 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
   test 'register new user - confirm that we get a display qr page after registering' do
     visit new_user_registration_path
-    fill_in('user_email', :with => 'test@test.com')
-    fill_in('user_password', :with => 'Password1')
-    fill_in('user_password_confirmation', :with => 'Password1')
+    fill_in('user_email', with: 'test@test.com')
+    fill_in('user_password', with: 'Password1')
+    fill_in('user_password_confirmation', with: 'Password1')
     click_link_or_button 'Sign up'
 
     assert_equal user_displayqr_path, current_path
@@ -28,7 +29,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
   test 'a new user should be able to sign in without using their token' do
     create_full_user
-    User.find_by_email("fulluser@test.com").update_attributes(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
+    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
 
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
@@ -40,7 +41,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
   test 'a new user should be able to sign in and change their qr code to enabled' do
     # sign_in_as_user
     create_full_user
-    User.find_by_email("fulluser@test.com").update_attributes(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
+    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => '123456'
@@ -59,7 +60,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
   test 'a new user should be able to sign in change their qr to enabled and be prompted for their token' do
     create_full_user
-    User.find_by_email("fulluser@test.com").update_attributes(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
+    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => '123456'
@@ -123,11 +124,13 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'successfull token authentication' do
+    create_full_user
     testuser = User.find_by_email("fulluser@test.com")
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => "123456"
     click_button "Log in"
+    save_and_open_page
     fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
     click_button 'Check Token'
 
@@ -136,6 +139,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'unsuccessful login - if ga_timeout is short' do
+    create_full_user
     old_ga_timeout = User.ga_timeout
     User.ga_timeout = 1.second
 
@@ -158,6 +162,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'unsuccessful login - if ga_timedrift is short' do
+    create_full_user
     old_ga_timedrift = User.ga_timedrift
     User.ga_timedrift = 1
 
@@ -178,6 +183,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
   test 'user is not prompted for token again after first login until remembertime is up' do
     # testuser = create_and_signin_gauth_user
+    create_full_user
     testuser = User.find_by_email("fulluser@test.com")
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'

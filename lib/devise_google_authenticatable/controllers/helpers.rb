@@ -8,7 +8,7 @@ module DeviseGoogleAuthenticator #:nodoc:
         username = nil
         Devise.authentication_keys.any? {|k| username = user.public_send(k) rescue nil }
         username ||= username_from_email(user.email)
-        app = user.class.ga_appname || Rails.application.class.parent_name
+        app = user.class.ga_appname || Rails.application.class.module_parent_name
         data = "otpauth://totp/#{otpauth_user(username, app, qualifier)}?secret=#{user.gauth_secret}"
         data << "&issuer=#{issuer}" if !issuer.nil?
         # data-uri is easier, so...

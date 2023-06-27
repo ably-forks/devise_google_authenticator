@@ -21,7 +21,7 @@ module DeviseGoogleAuthenticator
         # To change the default, uncomment and change the line below:
         # config.ga_remembertime = 1.month
 
-        # Change setting to assign the application name used by code generator. Defaults to `Rails.application.class.parent_name`.
+        # Change setting to assign the application name used by code generator. Defaults to `Rails.application.class.module_parent_name`.
         # To change the default, uncomment and change the line below:
         # config.ga_appname = 'example.com'
 
