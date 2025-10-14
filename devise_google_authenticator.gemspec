@@ -2,7 +2,7 @@ $LOAD_PATH.unshift File.expand_path('../lib', __FILE__)
 
 Gem::Specification.new do |s|
   s.name = "devise_google_authenticator"
-  s.version = "0.4.0"
+  s.version = "0.5.0"
   s.authors = ["Christian Frichot"]
   s.date = "2016-08-12"
   s.description = "Devise Google Authenticator Extension, for adding Google's OTP to your Rails apps!"
@@ -17,18 +17,11 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.summary = "Devise Google Authenticator Extension"
 
-  s.required_ruby_version = '>= 1.9.2'
+  s.required_ruby_version = '>= 3.0.0'
   # s.required_rubygems_version = '>= 2.1.0'
 
-  {
-    # 'railties' => '~> 3.0',
-    # removed the following to try and get past this bundle update not finding compatible versions for gem issue
-    # 'actionmailer' => '>= 3.0',
-    # 'actionmailer' => '~> 3.2',# '>= 3.2.12',
-    'devise'  => '~> 4.8.0',
-    'rotp'    => '>= 1.6',
-    'rqrcode' => '>= 0.10.1'
-  }.each do |lib, version|
-    s.add_runtime_dependency(lib, *version)
-  end
+  # Updated for Rails 8 compatibility
+  s.add_runtime_dependency 'devise', '>= 4.8.0', '< 6.0'
+  s.add_runtime_dependency 'rotp', '>= 1.6'
+  s.add_runtime_dependency 'rqrcode', '>= 0.10.1'
 end

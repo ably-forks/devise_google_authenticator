@@ -1,4 +1,4 @@
-class DeviseGoogleAuthenticatorAddTo<%= table_name.camelize %> < ActiveRecord::Migration
+class DeviseGoogleAuthenticatorAddTo<%= table_name.camelize %> < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
   def self.up
     change_table :<%= table_name %> do |t|
       t.string  :gauth_secret

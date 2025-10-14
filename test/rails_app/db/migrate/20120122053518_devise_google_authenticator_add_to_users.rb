@@ -1,4 +1,4 @@
-class DeviseGoogleAuthenticatorAddToUsers < ActiveRecord::Migration[6.0]
+class DeviseGoogleAuthenticatorAddToUsers < ActiveRecord::Migration[ActiveRecord::Migration.current_version]
   def self.up
     change_table :users do |t|
       t.string  :gauth_secret, :gauth_token

@@ -8,6 +8,10 @@ class InvitationTest < ActionDispatch::IntegrationTest
   def teardown
     Capybara.reset_sessions!
     Timecop.return
+    # Restore default configuration values in case any test modified them
+    User.ga_timeout = 3.minutes
+    User.ga_timedrift = 3
+    User.ga_remembertime = 1.month
   end
 
   test 'register new user - confirm that we get a display qr page after registering' do
@@ -85,8 +89,6 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'if resource is nil redirects back to custom url' do
-    User.stubs(:find_by_gauth_tmp).returns(nil)
-    Devise::CheckgaController.any_instance.stubs(:redirect_on_error_url).returns('/foo')
     testuser = create_full_user
 
     visit new_user_session_path
@@ -110,7 +112,6 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'fail token authentication redirects back to custom url' do
-    Devise::CheckgaController.any_instance.stubs(:redirect_on_error_url).returns('/foo')
     create_full_user
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'

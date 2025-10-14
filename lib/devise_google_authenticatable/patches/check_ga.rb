@@ -8,7 +8,7 @@ module DeviseGoogleAuthenticator::Patches #:nodoc:
 
       define_method :checkga_resource_path_name do |resource, id|
         name = resource.class.name.singularize.underscore
-        name = name.split('/').last
+        name = name&.split('/')&.last || resource.class.name.underscore
         "#{name}_checkga_path(id:'#{id}')"
       end
 
