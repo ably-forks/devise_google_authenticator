@@ -9,7 +9,7 @@ module DeviseGoogleAuthenticator
       def inject_devise_google_authenticator_content
         path = File.join("app","models","#{file_path}.rb")
 
-        if File.exists?(path)
+        if File.exist?(path)
           inject_into_file(path, "google_authenticatable, :", :after => "devise :")
           inject_into_file(path, "gauth_enabled, :gauth_tmp, :gauth_tmp_datetime, :", :after => "attr_accessible :") if needs_attr_accessible?
           inject_into_class(path, class_name, "\tattr_accessor :gauth_token\n")
