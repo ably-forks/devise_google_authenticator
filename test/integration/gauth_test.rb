@@ -5,11 +5,10 @@ class InvitationTest < ActionDispatch::IntegrationTest
   include IntegrationTestHelpers
   self.use_transactional_tests = true
 
+  FROZEN_TIME = Time.utc(2026, 1, 1, 12, 0, 5)
+
   def setup
-    # Freeze time at the start of a TOTP period to avoid tokens expiring
-    # at 30-second boundaries between generation and validation
-    t = Time.now
-    Timecop.freeze(t - (t.to_i % 30) + 5)
+    Timecop.freeze(FROZEN_TIME)
   end
 
   def teardown
@@ -107,7 +106,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
     Capybara.reset_sessions!
   end
 
-  test 'successfull token authentication' do
+  test 'successful token authentication' do
     testuser = create_and_signin_gauth_user
     fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
     click_button 'Check Token'
@@ -123,8 +122,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
       testuser = create_and_signin_gauth_user
 
-      # Advance past the ga_timeout while keeping time frozen for TOTP
-      Timecop.freeze(Time.now + 5)
+      Timecop.freeze(FROZEN_TIME + 5)
 
       fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
       click_button 'Check Token'
@@ -168,14 +166,12 @@ class InvitationTest < ActionDispatch::IntegrationTest
     assert_equal root_path, current_path
     visit destroy_user_session_path
 
-    Timecop.travel(1.month.to_i + 1.day.to_i)
+    Timecop.freeze(FROZEN_TIME + 1.month + 1.day)
     testuser = User.find_by_email("fulluser@test.com")
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => "123456"
     click_button "Log in"
     assert_equal user_checkga_path, current_path
-
-    Timecop.return
   end
 end
