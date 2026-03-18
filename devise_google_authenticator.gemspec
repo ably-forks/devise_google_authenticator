@@ -20,8 +20,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 3.0.0'
   # s.required_rubygems_version = '>= 2.1.0'
 
-  # Updated for Rails 8 compatibility
-  s.add_runtime_dependency 'devise', '>= 4.8.0', '< 6.0'
+  s.add_runtime_dependency 'devise', '~> 5.0'
   s.add_runtime_dependency 'rotp', '>= 1.6'
   s.add_runtime_dependency 'rqrcode', '>= 0.10.1'
 end
