@@ -18,7 +18,7 @@ class Devise::CheckgaController < Devise::SessionsController
     resource = resource_class.find_by_gauth_tmp(params[resource_name]['tmpid'])
 
     fail ErrorSigningIn unless resource
-    fail ErrorSigningIn unless resource.validate_token(params[resource_name]['gauth_token'].to_i)
+    fail ErrorSigningIn unless resource.validate_token(params[resource_name]['gauth_token'])
 
     set_flash_message(:notice, :signed_in) if is_navigational_format?
     sign_in(resource_name,resource)

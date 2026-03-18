@@ -12,7 +12,7 @@ class Devise::DisplayqrController < DeviseController
 
   def update
     fail InvalidToken if resource.gauth_tmp != params[resource_name]['tmpid']
-    fail InvalidToken unless resource.validate_token(params[resource_name]['gauth_token'].to_i)
+    fail InvalidToken unless resource.validate_token(params[resource_name]['gauth_token'])
 
     if resource.set_gauth_enabled(params[resource_name]['gauth_enabled'])
       set_flash_message :notice, (resource.gauth_enabled? ? :enabled : :disabled)
