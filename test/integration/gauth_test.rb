@@ -5,10 +5,15 @@ class InvitationTest < ActionDispatch::IntegrationTest
   include IntegrationTestHelpers
   self.use_transactional_tests = true
 
+  FROZEN_TIME = Time.utc(2026, 1, 1, 12, 0, 5)
+
+  def setup
+    Timecop.freeze(FROZEN_TIME)
+  end
+
   def teardown
     Capybara.reset_sessions!
     Timecop.return
-    # Restore default configuration values in case any test modified them
     User.ga_timeout = 3.minutes
     User.ga_timedrift = 3
     User.ga_remembertime = 1.month
@@ -23,7 +28,6 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
     assert_equal user_displayqr_path, current_path
 
-    # Get the user we just signed up's token
     testuser = User.find_by_email("test@test.com")
     fill_in('user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now))
     click_button 'Continue...'
@@ -33,7 +37,7 @@ class InvitationTest < ActionDispatch::IntegrationTest
 
   test 'a new user should be able to sign in without using their token' do
     create_full_user
-    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
+    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0)
 
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
@@ -43,9 +47,8 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'a new user should be able to sign in and change their qr code to enabled' do
-    # sign_in_as_user
     create_full_user
-    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
+    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0)
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => '123456'
@@ -54,7 +57,6 @@ class InvitationTest < ActionDispatch::IntegrationTest
     visit user_displayqr_path
 
     check 'user_gauth_enabled'
-    # Get the user we just signed up's token
     testuser = User.find_by_email("fulluser@test.com")
     fill_in('user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now))
     click_button 'Continue...'
@@ -63,21 +65,8 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'a new user should be able to sign in change their qr to enabled and be prompted for their token' do
-    create_full_user
-    User.find_by_email("fulluser@test.com").update(:gauth_enabled => 0) # force this off - unsure why sometimes it flicks on possible race condition
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => '123456'
-    click_button 'Log in'
-
-    visit user_displayqr_path
-    check 'user_gauth_enabled'
-    # Get the user we just signed up's token
-    testuser = User.find_by_email("fulluser@test.com")
-    fill_in('user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now))
-    click_button 'Continue...'
-
-    Capybara.reset_sessions!
+    testuser = create_full_user
+    testuser.update(:gauth_enabled => '1')
 
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
@@ -85,16 +74,12 @@ class InvitationTest < ActionDispatch::IntegrationTest
     click_button 'Log in'
 
     assert_equal user_checkga_path, current_path
-
   end
 
   test 'if resource is nil redirects back to custom url' do
-    testuser = create_full_user
-
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => '123456'
-    click_button 'Log in'
+    User.stubs(:find_by_gauth_tmp).returns(nil)
+    Devise::CheckgaController.any_instance.stubs(:redirect_on_error_url).returns('/foo')
+    testuser = create_and_signin_gauth_user
 
     fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
     click_button 'Check Token'
@@ -112,11 +97,8 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'fail token authentication redirects back to custom url' do
-    create_full_user
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => '123456'
-    click_button 'Log in'
+    Devise::CheckgaController.any_instance.stubs(:redirect_on_error_url).returns('/foo')
+    create_and_signin_gauth_user
 
     fill_in 'user_gauth_token', :with => "wrong token"
     click_button 'Check Token'
@@ -124,14 +106,8 @@ class InvitationTest < ActionDispatch::IntegrationTest
     Capybara.reset_sessions!
   end
 
-  test 'successfull token authentication' do
-    create_full_user
-    testuser = User.find_by_email("fulluser@test.com")
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => "123456"
-    click_button "Log in"
-    save_and_open_page
+  test 'successful token authentication' do
+    testuser = create_and_signin_gauth_user
     fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
     click_button 'Check Token'
 
@@ -140,63 +116,48 @@ class InvitationTest < ActionDispatch::IntegrationTest
   end
 
   test 'unsuccessful login - if ga_timeout is short' do
-    create_full_user
     old_ga_timeout = User.ga_timeout
-    User.ga_timeout = 1.second
+    begin
+      User.ga_timeout = 1.second
 
-    # testuser = create_and_signin_gauth_user
-    testuser = User.find_by_email("fulluser@test.com")
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => "123456"
-    click_button "Log in"
+      testuser = create_and_signin_gauth_user
 
-    sleep(5)
+      Timecop.freeze(FROZEN_TIME + 5)
 
-    fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
-    click_button 'Check Token'
+      fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
+      click_button 'Check Token'
 
-    User.ga_timeout = old_ga_timeout
-
-    assert_equal new_user_session_path, current_path
-    Capybara.reset_sessions!
+      assert_equal new_user_session_path, current_path
+    ensure
+      User.ga_timeout = old_ga_timeout
+      Capybara.reset_sessions!
+    end
   end
 
   test 'unsuccessful login - if ga_timedrift is short' do
-    create_full_user
     old_ga_timedrift = User.ga_timedrift
-    User.ga_timedrift = 1
+    begin
+      User.ga_timedrift = 1
 
-    # testuser = create_and_signin_gauth_user
-    testuser = User.find_by_email("fulluser@test.com")
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => "123456"
-    click_button "Log in"
-    fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now.in(60))
-    click_button 'Check Token'
+      testuser = create_and_signin_gauth_user
+      fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now.in(60))
+      click_button 'Check Token'
 
-    User.ga_timedrift = old_ga_timedrift
-
-    assert_equal new_user_session_path, current_path
-    Capybara.reset_sessions!
+      assert_equal new_user_session_path, current_path
+    ensure
+      User.ga_timedrift = old_ga_timedrift
+      Capybara.reset_sessions!
+    end
   end
 
   test 'user is not prompted for token again after first login until remembertime is up' do
-    # testuser = create_and_signin_gauth_user
-    create_full_user
-    testuser = User.find_by_email("fulluser@test.com")
-    visit new_user_session_path
-    fill_in 'user_email', :with => 'fulluser@test.com'
-    fill_in 'user_password', :with => "123456"
-    click_button "Log in"
+    testuser = create_and_signin_gauth_user
     fill_in 'user_gauth_token', :with => ROTP::TOTP.new(testuser.get_qr).at(Time.now)
     click_button 'Check Token'
 
     assert_equal root_path, current_path
 
     visit destroy_user_session_path
-    # sign_in_as_user(testuser)
     testuser = User.find_by_email("fulluser@test.com")
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
@@ -205,15 +166,12 @@ class InvitationTest < ActionDispatch::IntegrationTest
     assert_equal root_path, current_path
     visit destroy_user_session_path
 
-    Timecop.travel(1.month.to_i + 1.day.to_i)
-    # sign_in_as_user(testuser)
+    Timecop.freeze(FROZEN_TIME + 1.month + 1.day)
     testuser = User.find_by_email("fulluser@test.com")
     visit new_user_session_path
     fill_in 'user_email', :with => 'fulluser@test.com'
     fill_in 'user_password', :with => "123456"
     click_button "Log in"
     assert_equal user_checkga_path, current_path
-
-    Timecop.return
   end
 end

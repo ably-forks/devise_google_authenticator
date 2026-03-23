@@ -13,8 +13,7 @@ require 'database_cleaner/active_record'
 
 DatabaseCleaner.strategy = :transaction
 
-require "mocha/integration/test_unit"
-Mocha::Integration::TestUnit.activate
+require "mocha/minitest"
 
 I18n.load_path << File.expand_path("../support/locale/en.yml", __FILE__) if DEVISE_ORM == :mongoid
 
